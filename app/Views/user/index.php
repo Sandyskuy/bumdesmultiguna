@@ -43,7 +43,7 @@
 
             <!-- Nav Item - Dashboard -->
             <li class="nav-item">
-                <a class="nav-link" href="index.html">
+                <a class="nav-link" href="<?= base_url('admin/index'); ?>">
                     <i class="fas fa-fw fa-tachometer-alt"></i>
                     <span>1</span></a>
             </li>

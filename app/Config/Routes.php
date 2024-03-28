@@ -8,6 +8,7 @@ use CodeIgniter\Router\RouteCollection;
 $routes->get('/', 'Login::index');
 $routes->get('/admin', 'Admin::index', ['filter' => 'role:superadmin']);
 $routes->get('/admin/index', 'Admin::index', ['filter' => 'role:superadmin']);
+$routes->get('/admin/(:num)', 'Admin::detail/$1', ['filter' => 'role:superadmin']);
 
 $routes->resource('barang', ['controller' => 'Barang']);
 $routes->match(['post', 'options'], 'postbarang', 'Barang::create');

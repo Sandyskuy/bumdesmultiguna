@@ -360,47 +360,46 @@
                 <div class="container-fluid">
 
                     <!-- Page Heading -->
-                    <h1 class="h3 mb-4 text-gray-800">Blank Page</h1>
+                    <h1 class="h3 mb-4 text-gray-800">User Detail</h1>
                     <div class="row">
                         <div class="col-lg-8">
-                            <table class="table">
-                                <thead>
-                                    <tr>
-                                        <th scope="col">#</th>
-                                        <th scope="col">Username</th>
-                                        <th scope="col">Email</th>
-                                        <th scope="col">Role</th>
-                                        <th scope="col">Action</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    <?php $i = 1; ?>
-                                    <?php foreach ($users as $user): ?>
-                                        <tr>
-                                            <th scope="row">
-                                                <?= $i++; ?>
-                                            </th>
-                                            <td>
-                                                <?= $user->username; ?>
-                                            </td>
-                                            <td>
-                                                <?= $user->email; ?>
-                                            </td>
-                                            <td>
-                                                <?= $user->group_name; ?>
-                                            </td>
-
-                                            <td>
-                                                <a href="<?= base_url('admin/' . $user->user_id); ?>"
-                                                    class="btn btn-info">Detail</a>
-                                            </td>
-                                        </tr>
-                                    <?php endforeach; ?>
-                                </tbody>
-                            </table>
-
+                            <div class="card mb-3" style="max-width: 540px;">
+                                <div class="row g-0">
+                                    <div class="col-md-4">
+                                        <img src="..." class="img-fluid rounded-start" alt="...">
+                                    </div>
+                                    <div class="col-md-8">
+                                        <div class="card-body">
+                                            <ul class="list-group list-group-flush">
+                                                <li class="list-group-item">
+                                                    <h4>
+                                                        <?= $user->username; ?>
+                                                    </h4>
+                                                </li>
+                                                <?php if ($user->nama_user): ?>
+                                                    <li class="list-group-item">
+                                                        <?= $user->nama_user; ?>
+                                                    </li>
+                                                <?php endif; ?>
+                                                <li class="list-group-item">
+                                                    <?= $user->email; ?>
+                                                </li>
+                                                <li class="list-group-item">
+                                                    <span class="badge badge-success">
+                                                        <?= $user->group_name; ?>
+                                                    </span>
+                                                </li>
+                                                <li class="list-group-item">
+                                                    <a href="<?= base_url('admin') ?>">&laquo; Back to user list</a>
+                                                </li>
+                                            </ul>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                     </div>
+
 
                 </div>
                 <!-- /.container-fluid -->

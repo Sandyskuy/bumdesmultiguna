@@ -41,8 +41,7 @@ class Filters extends BaseConfig
             // 'honeypot',
             // 'csrf',
             // 'invalidchars',
-            'cors',
-            'login'
+            'cors'
         ],
         'after' => [
             'toolbar',

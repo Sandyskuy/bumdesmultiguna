@@ -10,7 +10,8 @@ class BarangModel extends Model
 
     protected $primaryKey = 'id'; // Primary key tabel
 
-    protected $allowedFields = ['nama', 'deskripsi', 'harga', 'stok', 'gambar', 'kategori_id']; // Kolom yang diizinkan untuk diisi
+    protected $allowedFields = ['nama', 'deskripsi', 'harga', 'harga_kulak', 'stok', 'gambar', 'kategori_id', 'created_at'];
+
 
     // Relasi dengan tabel Kategori Barang
     public function kategori()

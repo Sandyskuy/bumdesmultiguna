@@ -3,6 +3,7 @@
 namespace Config;
 
 use CodeIgniter\Config\BaseService;
+use Myth\Auth\Models\UserModel;
 
 /**
  * Services Configuration file.
@@ -29,4 +30,11 @@ class Services extends BaseService
      *     return new \CodeIgniter\Example();
      * }
      */
+
+
+    public static function userModel(bool $getShared = true)
+    {
+        return $getShared ? static::getSharedInstance('userModel') : new UserModel();
+    }
+
 }

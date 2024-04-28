@@ -4,7 +4,8 @@ namespace App\Controllers;
 
 use CodeIgniter\API\ResponseTrait;
 use CodeIgniter\HTTP\ResponseInterface;
-use Myth\Auth\Models\UserModel;
+use App\Models\UserModel;
+use \Firebase\JWT\JWT;
 
 class AuthController extends BaseController
 {
@@ -31,14 +32,17 @@ class AuthController extends BaseController
             return redirect()->back()->withInput()->with('errors', $this->validator->getErrors());
         }
 
+        // Hash password
+        $password = $this->request->getVar('password');
+        $hashedPassword = password_hash($password, PASSWORD_DEFAULT);
+
         // Simpan data pengguna
         $userData = [
             'email' => $this->request->getVar('email'),
             'username' => $this->request->getVar('username'),
-            'password' => $this->request->getVar('password'),
+            'password' => $hashedPassword,
+            'role' => 'buyer' // Set default role to 'buyer'
         ];
-
-        // Jika konfigurasi membutuhkan aktivasi, tambahkan langkah aktivasi di sini
 
         $user = $this->userModel->save($userData);
         if (!$user) {
@@ -50,27 +54,46 @@ class AuthController extends BaseController
 
     public function login()
     {
-        // Lakukan validasi data
-        $rules = [
-            'email' => 'required|valid_email',
-            'password' => 'required',
-        ];
+        $email = $this->request->getVar('email');
+        $username = $this->request->getVar('username');
+        $password = $this->request->getVar('password');
 
-        if (!$this->validate($rules)) {
-            return $this->respond(['error' => $this->validator->getErrors()], ResponseInterface::HTTP_BAD_REQUEST);
+        // Cari user berdasarkan email
+        $user = $this->userModel->where('email', $email)->first();
+
+        // Jika tidak ditemukan, cari user berdasarkan username
+        if (is_null($user) && !empty($username)) {
+            $user = $this->userModel->where('username', $username)->first();
         }
 
-        // Lakukan proses login
-        $credentials = [
-            'email' => $this->request->getVar('email'),
-            'password' => $this->request->getVar('password'),
-        ];
-
-        if (!$this->userModel->login($credentials)) {
-            return $this->failUnauthorized('Invalid email or password');
+        // Jika user tidak ditemukan atau password tidak cocok, kirim respon error
+        if (is_null($user) || !password_verify($password, $user['password'])) {
+            return $this->respond(['error' => 'Invalid email/username or password.'], 401);
         }
 
-        return $this->respond(['message' => 'Login successful']);
+        // Pembuatan token JWT dan respon berhasil
+        $key = getenv('JWT_SECRET');
+        $iat = time(); // current timestamp value
+        $exp = $iat + 3600;
+
+        $payload = array(
+            "iss" => "Issuer of the JWT",
+            "aud" => "Audience that the JWT",
+            "sub" => "Subject of the JWT",
+            "iat" => $iat, //Time the JWT issued at
+            "exp" => $exp, // Expiration time of token
+            "id" => $user['id'], // Add user ID to payload
+            "email" => $user['email'],
+        );
+
+        $token = JWT::encode($payload, $key, 'HS256');
+
+        $response = [
+            'message' => 'Login Succesful',
+            'token' => $token
+        ];
+
+        return $this->respond($response, 200);
     }
 
     public function logout()

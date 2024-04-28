@@ -18,12 +18,18 @@ class Barang extends ResourceController
     }
 
 
-    public function show($id = null)
+    public function detail($id)
     {
         $model = new $this->modelName();
         $data = $model->find($id);
+
+        if ($data === null) {
+            return $this->failNotFound('Barang not found');
+        }
+
         return $this->respond($data);
     }
+
 
     public function create()
     {

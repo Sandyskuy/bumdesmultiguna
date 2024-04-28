@@ -8,9 +8,9 @@ class TransaksiModel extends Model
 {
     protected $table = 'transaksi';
     protected $primaryKey = 'id';
-    protected $allowedFields = ['pengguna_id', 'tanggal', 'total', 'status', 'metode_pembayaran'];
-    protected $useTimestamps = true;
-    protected $returnType = 'App\Entities\Transaksi';
+    protected $allowedFields = ['pengguna_id', 'tanggal', 'total', 'status'];
+    protected $useTimestamps = false;
+    protected $returnType = 'array';
     protected $dateFormat = 'datetime';
 
     // Definisikan relasi dengan tabel detail transaksi

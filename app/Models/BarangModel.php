@@ -11,6 +11,7 @@ class BarangModel extends Model
     protected $primaryKey = 'id'; // Primary key tabel
 
     protected $allowedFields = ['nama', 'deskripsi', 'harga', 'harga_kulak', 'stok', 'gambar', 'kategori_id', 'created_at'];
+    protected $returnType = 'array'; // Sesuaikan dengan tipe yang Anda inginkan, misalnya 'object'
 
 
     // Relasi dengan tabel Kategori Barang
@@ -27,4 +28,13 @@ class BarangModel extends Model
     ")->getResult();
     }
 
+    public function findHargaById($barang_id)
+    {
+        $barang = $this->find($barang_id);
+        if ($barang) {
+            return $barang['harga'];
+        } else {
+            return null; // Return null jika barang tidak ditemukan
+        }
+    }
 }

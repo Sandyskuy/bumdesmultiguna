@@ -1,142 +1,171 @@
 <?php
-
 namespace App\Controllers;
 
-use CodeIgniter\Controller;
-use CodeIgniter\HTTP\Response;
-use Myth\Auth\Entities\User;
-use Myth\Auth\Models\UserModel;
+use App\Models\UserModel;
 use CodeIgniter\API\ResponseTrait;
+use CodeIgniter\HTTP\ResponseInterface;
 
-class Admin extends Controller
+class Admin extends BaseController
 {
+    protected $userModel;
     use ResponseTrait;
-
-    protected $db;
-    protected $builder;
-    protected $config;
-
     public function __construct()
     {
-        $this->db = \Config\Database::connect();
-        $this->builder = $this->db->table('users');
-        $this->config = config('Auth');
+        $this->userModel = new UserModel();
     }
 
     public function index()
     {
-        $this->builder->select('users.id as user_id, username, email, users.name as nama_user, auth_groups.name as group_name');
-        $this->builder->join('auth_groups_users', 'auth_groups_users.user_id = users.id');
-        $this->builder->join('auth_groups', 'auth_groups.id = auth_groups_users.group_id');
-        $this->builder->where('auth_groups.name', 'staff'); // Filter hanya grup staff
-        $query = $this->builder->get();
-
-        $data['users'] = $query->getResult();
-
-        return $this->response->setStatusCode(200)->setJSON($data);
+        // Ambil semua data pengguna
+        $users = $this->userModel->findAll();
+    
+        return $this->response->setJSON($users);
     }
+    
 
-
-    public function detail($id = 0)
+    public function show($id)
     {
-        $this->builder->select('users.id as user_id, username, email, users.name as nama_user, auth_groups.name as group_name');
-        $this->builder->join('auth_groups_users', 'auth_groups_users.user_id = users.id');
-        $this->builder->join('auth_groups', 'auth_groups.id = auth_groups_users.group_id');
-        $this->builder->where('users.id', $id);
-        $query = $this->builder->get();
+        $user = $this->userModel->find($id);
 
-        $data['user'] = $query->getRow();
-
-        if (empty($data['user'])) {
-            return $this->response->setStatusCode(404)->setJSON(['message' => 'User not found']);
+        if (!$user) {
+            return $this->failNotFound('User not found');
         }
 
-        return $this->response->setStatusCode(200)->setJSON($data);
+        return $this->response->setJSON($user);
+    }
+    public function createSuperAdmin()
+    {
+        // Data super admin yang sudah ditentukan
+        $superAdminData = [
+            'username' => 'superadmin',
+            'email' => 'superadmin@example.com',
+            'password' => password_hash('superadminpassword', PASSWORD_DEFAULT), // Hash password
+            'role' => 'super_admin'
+        ];
+
+        // Simpan data super admin ke dalam database
+        $user = $this->userModel->save($superAdminData);
+
+        if (!$user) {
+            return $this->fail('Failed to create super admin', ResponseInterface::HTTP_INTERNAL_SERVER_ERROR);
+        }
+
+        return $this->respondCreated(['message' => 'Super admin created successfully']);
     }
 
     public function create()
     {
-        $request = service('request');
-        $username = $request->getVar('username');
-        $email = $request->getVar('email');
-        $password = $request->getVar('password');
+        // Lakukan validasi data
+        $rules = [
+            'email' => 'required|valid_email|is_unique[users.email]',
+            'username' => 'required|min_length[3]|max_length[30]|is_unique[users.username]',
+            'password' => 'required|min_length[6]',
+            'phone_number' => 'permit_empty|numeric',
+            'name' => 'permit_empty',
+            'address' => 'permit_empty',
+            'role' => 'permit_empty|in_list[admin,super_admin,staff,buyer]' // Pastikan peran valid
+        ];
 
-        if (!isset($username, $email, $password)) {
-            return $this->respond(['message' => 'Missing required fields'], Response::HTTP_BAD_REQUEST);
+        if (!$this->validate($rules)) {
+            return $this->failValidationErrors($this->validator->getErrors());
         }
 
-        $users = model(UserModel::class);
+        // Hash password
+        $password = $this->request->getVar('password');
+        $hashedPassword = password_hash($password, PASSWORD_DEFAULT);
 
-        // Create a new user entity
-        $user = new User([
-            'username' => $username,
-            'email' => $email,
-            'password' => $password
-        ]);
+        // Set peran default ke 'staff' jika tidak diberikan
+        $role = $this->request->getVar('role') ?? 'staff';
 
-        $this->config->requireActivation === null ? $user->activate() : $user->generateActivateHash();
+        // Simpan data pengguna
+        $userData = [
+            'email' => $this->request->getVar('email'),
+            'username' => $this->request->getVar('username'),
+            'password' => $hashedPassword,
+            'phone_number' => $this->request->getVar('phone_number'),
+            'name' => $this->request->getVar('name'),
+            'address' => $this->request->getVar('address'),
+            'role' => $role
+        ];
 
-        $userModel = $users->withGroup('staff'); // Assuming 'staff' is the group name
-        $user = $userModel->insert($user);
-
-        return $this->respond(['message' => 'User created successfully']);
-    }
-
-    public function update($id = null)
-    {
-        $request = service('request');
-        $username = $request->getVar('username');
-        $email = $request->getVar('email');
-        $password = $request->getVar('password');
-
-        if (!isset($id, $username, $email, $password)) {
-            return $this->respond(['message' => 'Missing required fields'], Response::HTTP_BAD_REQUEST);
-        }
-
-        $users = model(UserModel::class);
-        $user = $users->find($id);
+        $user = $this->userModel->insert($userData);
 
         if (!$user) {
-            return $this->respond(['message' => 'User not found'], Response::HTTP_NOT_FOUND);
+            return $this->fail('Failed to create user', ResponseInterface::HTTP_INTERNAL_SERVER_ERROR);
         }
 
-        $user->username = $username;
-        $user->email = $email;
-        $user->password = $password;
+        return $this->respondCreated(['message' => 'User created successfully']);
+    }
 
-        if (!$users->save($user)) {
-            return $this->respond(['message' => $users->errors()], Response::HTTP_INTERNAL_SERVER_ERROR);
+    public function update($id)
+    {
+        // Temukan pengguna berdasarkan ID
+        $user = $this->userModel->find($id);
+
+        if (!$user) {
+            return $this->failNotFound('User not found');
+        }
+
+        // Lakukan validasi data
+        $rules = [
+            'email' => 'valid_email|is_unique[users.email,id,' . $id . ']',
+            'username' => 'min_length[3]|max_length[30]|is_unique[users.username,id,' . $id . ']',
+            'password' => 'min_length[6]',
+            'phone_number' => 'permit_empty|numeric',
+            'name' => 'permit_empty',
+            'address' => 'permit_empty'
+        ];
+
+        if (!$this->validate($rules)) {
+            return $this->failValidationErrors($this->validator->getErrors());
+        }
+
+        // Hash password jika disediakan
+        if ($this->request->getVar('password')) {
+            $password = $this->request->getVar('password');
+            $hashedPassword = password_hash($password, PASSWORD_DEFAULT);
+        }
+
+        // Set peran default ke 'staff' jika tidak diberikan
+        $role = $this->request->getVar('role') ?? $user['role'];
+
+        // Simpan data pengguna
+        $userData = [
+            'email' => $this->request->getVar('email') ?? $user['email'],
+            'username' => $this->request->getVar('username') ?? $user['username'],
+            'password' => isset($hashedPassword) ? $hashedPassword : $user['password'],
+            'phone_number' => $this->request->getVar('phone_number') ?? $user['phone_number'],
+            'name' => $this->request->getVar('name') ?? $user['name'],
+            'address' => $this->request->getVar('address') ?? $user['address'],
+            'role' => $role
+        ];
+
+        $updated = $this->userModel->update($id, $userData);
+
+        if (!$updated) {
+            return $this->fail('Failed to update user', ResponseInterface::HTTP_INTERNAL_SERVER_ERROR);
         }
 
         return $this->respond(['message' => 'User updated successfully']);
     }
 
-    public function delete($id = null)
+    public function delete($id)
     {
-        // Check if ID is provided
-        if (!$id) {
-            return $this->respond(['message' => 'Missing user ID'], Response::HTTP_BAD_REQUEST);
-        }
+        // Temukan pengguna berdasarkan ID
+        $user = $this->userModel->find($id);
 
-        // Load UserModel
-        $users = model(UserModel::class);
-
-        // Attempt to find the user
-        $user = $users->find($id);
-
-        // If user not found, return 404 response
         if (!$user) {
-            return $this->respond(['message' => 'User not found'], Response::HTTP_NOT_FOUND);
+            return $this->failNotFound('User not found');
         }
 
-        // Attempt to delete the user
-        if (!$users->delete($id)) {
-            return $this->respond(['message' => 'Failed to delete user'], Response::HTTP_INTERNAL_SERVER_ERROR);
+        // Hapus pengguna
+        $deleted = $this->userModel->delete($id);
+
+        if (!$deleted) {
+            return $this->fail('Failed to delete user', ResponseInterface::HTTP_INTERNAL_SERVER_ERROR);
         }
 
-        // Return success response
-        return $this->respond(['message' => 'User deleted successfully']);
+        return $this->respondDeleted(['message' => 'User deleted successfully']);
     }
-
 
 }
